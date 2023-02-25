@@ -1,0 +1,9 @@
+go 1.19
+
+use (
+	./deleteSharedDoc
+	./expirySystem
+	./panicButton
+	./verifyMobileNumber
+	./updateVerificationStatus
+)
