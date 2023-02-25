@@ -3,6 +3,7 @@ package helloWorld
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,6 +14,12 @@ import (
 	"github.com/twilio/twilio-go"
 	twilioApi "github.com/twilio/twilio-go/rest/api/v2010"
 	"google.golang.org/api/iterator"
+	"googlemaps.github.io/maps"
+)
+
+var (
+	apiKey = flag.String("key", "AIzaSyB4SrAW0kqwjtfXSGu2SaROH7H2Hab8Syg", "API KEY")
+	// location = flag.String("location", "-33.8665433,151.1956316", "latitude,longitude")
 )
 
 func init() {
@@ -85,6 +92,33 @@ func FetchMobileNumbers(uid string) ([]string, error) {
 	return mobileNumber, nil
 }
 
+func NearestHospitals() int {
+	flag.Parse()
+	client, err := maps.NewClient(maps.WithAPIKey(*apiKey))
+
+	if err != nil {
+		log.Fatal(err.Error())
+		res := http.StatusBadRequest
+		return res
+	}
+
+	r := &maps.NearbySearchRequest{
+		Radius:   500,
+		Location: &maps.LatLng{Lat: -33.8665433, Lng: 151.1956316},
+		Type:     "hospital",
+	}
+
+	response, err := client.NearbySearch(context.Background(), r)
+	if err != nil {
+		log.Fatal(err.Error())
+		return http.StatusInternalServerError
+	}
+
+	log.Fatal(response)
+	return http.StatusOK
+
+}
+
 func PanicButton(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
@@ -126,6 +160,10 @@ func PanicButton(w http.ResponseWriter, r *http.Request) {
 		if res == 500 {
 			return
 		}
+	}
+	loc := NearestHospitals()
+	if loc != 500 {
+		return
 	}
 
 }
