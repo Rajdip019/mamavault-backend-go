@@ -8,7 +8,6 @@ require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.6.1
 	github.com/twilio/twilio-go v1.3.4
 	google.golang.org/api v0.110.0
-	googlemaps.github.io/maps v1.4.0
 )
 
 require (
