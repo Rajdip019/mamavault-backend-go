@@ -15,11 +15,6 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-// var (
-// 	apiKey = flag.String("key", "", "API KEY")
-// 	location = flag.String("location", "-33.8665433,151.1956316", "latitude,longitude")
-// )
-
 func init() {
 	functions.HTTP("PanicButton", PanicButton)
 }
@@ -62,6 +57,33 @@ func SendMessage(number string, location_link string, name string) int {
 		fmt.Println(string(response))
 		return http.StatusAccepted
 	}
+
+}
+
+func MakeCall(number string) int {
+
+	accountSid := ""
+	authToken := ""
+
+	client := twilio.NewRestClientWithParams(twilio.ClientParams{
+		Username: accountSid,
+		Password: authToken,
+	})
+
+	callParams := &twilioApi.CreateCallParams{}
+	callParams.SetTo(number)
+	callParams.SetFrom("+15154977791")
+	callParams.SetUrl("http://twimlets.com/holdmusic?Bucket=com.twilio.music.ambient")
+
+	resp, err := client.Api.CreateCall(callParams)
+	if err != nil {
+		return http.StatusInternalServerError
+	} else {
+		response, _ := json.Marshal(*resp)
+		fmt.Println(string(response))
+		return http.StatusAccepted
+	}
+
 }
 
 func FetchMobileNumbers(uid string) ([]string, error) {
@@ -89,33 +111,6 @@ func FetchMobileNumbers(uid string) ([]string, error) {
 	}
 	return mobileNumber, nil
 }
-
-// func NearestHospitals() int {
-// 	flag.Parse()
-// 	client, err := maps.NewClient(maps.WithAPIKey(*apiKey))
-
-// 	if err != nil {
-// 		log.Fatal(err.Error())
-// 		res := http.StatusBadRequest
-// 		return res
-// 	}
-
-// 	r := &maps.NearbySearchRequest{
-// 		Radius:   500,
-// 		Location: &maps.LatLng{Lat: -33.8665433, Lng: 151.1956316},
-// 		Type:     "hospital",
-// 	}
-
-// 	response, err := client.NearbySearch(context.Background(), r)
-// 	if err != nil {
-// 		log.Fatal(err.Error())
-// 		return http.StatusInternalServerError
-// 	}
-
-// 	log.Fatal(response)
-// 	return http.StatusOK
-
-// }
 
 func PanicButton(w http.ResponseWriter, r *http.Request) {
 
@@ -154,14 +149,11 @@ func PanicButton(w http.ResponseWriter, r *http.Request) {
 		mobileNumbers = append(mobileNumbers, new)
 	}
 	for _, num := range mobileNumbers {
-		res := SendMessage(num, b.LocationLink, b.Name)
-		if res == 500 {
+		messageRes := SendMessage(num, b.LocationLink, b.Name)
+		callRes := MakeCall(num)
+		if messageRes == 500 || callRes == 500 {
 			return
 		}
 	}
-	// loc := NearestHospitals()
-	// if loc != 500 {
-	// 	return
-	// }
 
 }
