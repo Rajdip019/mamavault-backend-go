@@ -13,12 +13,12 @@ import (
 )
 
 func init() {
-	functions.HTTP("DeleteDoc", DeleteDoc)
+	functions.HTTP("DeleteSharedDoc", DeleteSharedDoc)
 }
 
-func InitalizeApp() (*firestore.Client, context.Context) {
+func InitializeApp() (*firestore.Client, context.Context) {
 	ctx := context.Background()
-	conf := &firebase.Config{ProjectID: "mamavault-019"}
+	conf := &firebase.Config{ProjectID: "mamavault"}
 	app, err := firebase.NewApp(ctx, conf)
 	if err != nil {
 		log.Fatalln(err)
@@ -31,9 +31,9 @@ func InitalizeApp() (*firestore.Client, context.Context) {
 	return firestore, ctx
 }
 
-func DeleteDoc(w http.ResponseWriter, r *http.Request) {
+func DeleteSharedDoc(w http.ResponseWriter, r *http.Request) {
 	// Initialize app
-	firestore, ctx := InitalizeApp()
+	firestore, ctx := InitializeApp()
 	defer firestore.Close()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -49,13 +49,13 @@ func DeleteDoc(w http.ResponseWriter, r *http.Request) {
 	_, err := firestore.Collection("shared_docs").Doc(b.ShareDocId).Delete(ctx)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "Some error occoured")
+		fmt.Fprint(w, "Some error occurred")
 		return
 	}
 	_, errLink := firestore.Collection("users").Doc(b.Uid).Collection("shared_links").Doc(b.ShareDocId).Delete(ctx)
 	if errLink != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "Some error occoured")
+		fmt.Fprint(w, "Some error occurred")
 		return
 	}
 	w.WriteHeader(http.StatusOK)

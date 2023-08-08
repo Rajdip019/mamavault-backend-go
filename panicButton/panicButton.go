@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go"
@@ -15,13 +17,16 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+// setting environment variables
+var azureAPIKey = os.Getenv("AZURE_API_KEY")
+
 func init() {
 	functions.HTTP("PanicButton", PanicButton)
 }
 
-func InitalizeApp() (*firestore.Client, context.Context) {
+func InitializeApp() (*firestore.Client, context.Context) {
 	ctx := context.Background()
-	conf := &firebase.Config{ProjectID: "mamavault-019"}
+	conf := &firebase.Config{ProjectID: "mamavault"}
 	app, err := firebase.NewApp(ctx, conf)
 	if err != nil {
 		log.Fatalln(err)
@@ -46,7 +51,7 @@ func SendMessage(number string, location_link string, name string) int {
 
 	params := &twilioApi.CreateMessageParams{}
 	params.SetTo(number)
-	params.SetFrom("+15154977791")
+	params.SetFrom("+13253357019")
 	params.SetBody(name + " is in problem at " + location_link)
 
 	res, err := client.Api.CreateMessage(params)
@@ -72,7 +77,7 @@ func MakeCall(number string) int {
 
 	callParams := &twilioApi.CreateCallParams{}
 	callParams.SetTo(number)
-	callParams.SetFrom("+15154977791")
+	callParams.SetFrom("+13253357019")
 	callParams.SetUrl("http://twimlets.com/holdmusic?Bucket=com.twilio.music.ambient")
 
 	resp, err := client.Api.CreateCall(callParams)
@@ -88,7 +93,7 @@ func MakeCall(number string) int {
 
 func FetchMobileNumbers(uid string) ([]string, error) {
 	// Initialize app
-	firebase, ctx := InitalizeApp()
+	firebase, ctx := InitializeApp()
 	defer firebase.Close()
 
 	var mobileNumbersUnfiltered []map[string]interface{} = nil
@@ -112,6 +117,21 @@ func FetchMobileNumbers(uid string) ([]string, error) {
 	return mobileNumber, nil
 }
 
+func GetNearbyHospitals(lat string, lon string) ([]byte, error) {
+	resp, err := http.Get("https://atlas.microsoft.com/search/nearby/json?subscription-key=" + azureAPIKey + "&api-version=1.0&lat=" + lat + "&lon=" + lon + "&categorySet=7321002&radius=10000")
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	return body, nil
+}
+
 func PanicButton(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
@@ -120,6 +140,10 @@ func PanicButton(w http.ResponseWriter, r *http.Request) {
 		Uid          string `json:"uid"`
 		Name         string `json:"name"`
 		LocationLink string `json:"location_link"`
+		Location     struct {
+			Lat string `json:"lat"`
+			Lon string `json:"lon"`
+		} `json:"location"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
@@ -127,7 +151,7 @@ func PanicButton(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Initialize app
-	firebase, ctx := InitalizeApp()
+	firebase, ctx := InitializeApp()
 	defer firebase.Close()
 
 	var mobileNumbersUnfiltered []map[string]interface{} = nil
@@ -151,9 +175,20 @@ func PanicButton(w http.ResponseWriter, r *http.Request) {
 	for _, num := range mobileNumbers {
 		messageRes := SendMessage(num, b.LocationLink, b.Name)
 		callRes := MakeCall(num)
-		if messageRes == 500 || callRes == 500 {
-			return
+		if messageRes == 500 {
+			fmt.Println("Error while sending message")
+		}
+		if callRes == 500 {
+			fmt.Println("Error while making call")
 		}
 	}
-
+	res, err := GetNearbyHospitals(b.Location.Lat, b.Location.Lon)
+	if err != nil {
+		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Some error occurred while getting nearby hospitals"))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(res)
 }

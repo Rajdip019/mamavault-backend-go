@@ -16,9 +16,9 @@ func init() {
 	functions.HTTP("DeleteDocs", DeleteDocs)
 }
 
-func InitalizeApp() (*firestore.Client, context.Context) {
+func InitializeApp() (*firestore.Client, context.Context) {
 	ctx := context.Background()
-	conf := &firebase.Config{ProjectID: "mamavault-019"}
+	conf := &firebase.Config{ProjectID: "mamavault"}
 	app, err := firebase.NewApp(ctx, conf)
 	if err != nil {
 		log.Fatalln(err)
@@ -33,7 +33,7 @@ func InitalizeApp() (*firestore.Client, context.Context) {
 
 func DeleteDocs(w http.ResponseWriter, r *http.Request) {
 	// Initialize app
-	firestore, ctx := InitalizeApp()
+	firestore, ctx := InitializeApp()
 	defer firestore.Close()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -50,7 +50,7 @@ func DeleteDocs(w http.ResponseWriter, r *http.Request) {
 		_, err := firestore.Collection("users").Doc(b.Uid).Collection("documents").Doc(id).Delete(ctx)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, "Some error occoured")
+			fmt.Fprint(w, "Some error occurred")
 			return
 		}
 	}

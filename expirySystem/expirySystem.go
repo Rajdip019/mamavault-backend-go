@@ -47,12 +47,12 @@ type SharedDoc struct {
 }
 
 func init() {
-	functions.HTTP("HelloGet", ExpirySystem)
+	functions.HTTP("ExpirySystem", ExpirySystem)
 }
 
-func InitalizeApp() (*firestore.Client, context.Context) {
+func InitializeApp() (*firestore.Client, context.Context) {
 	ctx := context.Background()
-	conf := &firebase.Config{ProjectID: "mamavault-019"}
+	conf := &firebase.Config{ProjectID: "mamavault"}
 	app, err := firebase.NewApp(ctx, conf)
 	if err != nil {
 		log.Fatalln(err)
@@ -172,14 +172,14 @@ func DuplicateData(firestore *firestore.Client, ctx context.Context, uid string,
 
 func ExpirySystem(w http.ResponseWriter, r *http.Request) {
 	// Initialize app
-	firestore, ctx := InitalizeApp()
+	firestore, ctx := InitializeApp()
 	defer firestore.Close()
 
 	w.Header().Set("Content-Type", "application/json")
 
 	var b struct {
 		Uid        string   `json:"uid"`
-		IsProfile  bool     `json:"isprofile"`
+		IsProfile  bool     `json:"isProfile"`
 		TTL        int      `json:"ttl"`
 		SharedDocs []string `json:"shared_docs"`
 	}
@@ -214,7 +214,7 @@ func ExpirySystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task, err := createHTTPTask(ctx, "mamavault-019", "asia-south1", "shared-doc-delete-queue", "https://delete-shared-doc-s6e4vwvwlq-el.a.run.app", id, b.TTL, b.Uid)
+	task, err := createHTTPTask(ctx, "mamavault", "asia-south1", "shared-doc-delete-queue", "https://delete-shared-doc-s6e4vwvwlq-el.a.run.app", id, b.TTL, b.Uid)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("500 - Internal Server Error"))
@@ -223,7 +223,7 @@ func ExpirySystem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Sending response
-	responseMap := map[string]string{"shared_doucment_id": id, "share_doc_link": share_doc_link, "delete_task_path": task.Name}
+	responseMap := map[string]string{"shared_document_id": id, "share_doc_link": share_doc_link, "delete_task_path": task.Name}
 	response, err := json.Marshal(responseMap)
 
 	if err != nil {

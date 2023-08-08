@@ -16,9 +16,9 @@ func init() {
 	functions.HTTP("UpdateVerificationStatus", UpdateVerificationStatus)
 }
 
-func InitalizeApp() (*firestore.Client, context.Context) {
+func InitializeApp() (*firestore.Client, context.Context) {
 	ctx := context.Background()
-	conf := &firebase.Config{ProjectID: "mamavault-019"}
+	conf := &firebase.Config{ProjectID: "mamavault"}
 	app, err := firebase.NewApp(ctx, conf)
 	if err != nil {
 		log.Fatalln(err)
@@ -33,7 +33,7 @@ func InitalizeApp() (*firestore.Client, context.Context) {
 
 func UpdateVerificationStatus(w http.ResponseWriter, r *http.Request) {
 	// Initialize app
-	client, ctx := InitalizeApp()
+	client, ctx := InitializeApp()
 	defer client.Close()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -55,20 +55,20 @@ func UpdateVerificationStatus(w http.ResponseWriter, r *http.Request) {
 		})
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, "Some error occoured")
+			fmt.Fprint(w, "Some error occurred")
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Mobile Number veirfied"))
+		w.Write([]byte("Mobile Number verified"))
 	} else if b.Action == "Delete" {
 		_, err := client.Collection("users").Doc(b.Uid).Collection("panic_info").Doc(b.VerificationId).Delete(ctx)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, "Some error occoured")
+			fmt.Fprint(w, "Some error occurred")
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Mobile Number veirfied"))
+		w.Write([]byte("Mobile Number verified"))
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "Wrong action")
