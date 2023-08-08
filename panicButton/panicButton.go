@@ -19,6 +19,9 @@ import (
 
 // setting environment variables
 var azureAPIKey = os.Getenv("AZURE_API_KEY")
+var accountSid = os.Getenv("TWILIO_ACCOUNT_SID")
+var authToken = os.Getenv("TWILIO_AUTH_TOKEN")
+var twilioNumber = os.Getenv("TWILIO_NUMBER")
 
 func init() {
 	functions.HTTP("PanicButton", PanicButton)
@@ -40,9 +43,7 @@ func InitializeApp() (*firestore.Client, context.Context) {
 	return firestore, ctx
 }
 
-func SendMessage(number string, location_link string, name string) int {
-	accountSid := ""
-	authToken := ""
+func SendMessage(number string, location_link string, name string) error {
 
 	client := twilio.NewRestClientWithParams(twilio.ClientParams{
 		Username: accountSid,
@@ -51,24 +52,22 @@ func SendMessage(number string, location_link string, name string) int {
 
 	params := &twilioApi.CreateMessageParams{}
 	params.SetTo(number)
-	params.SetFrom("+13253357019")
+	params.SetFrom(twilioNumber)
 	params.SetBody(name + " is in problem at " + location_link)
 
 	res, err := client.Api.CreateMessage(params)
 	if err != nil {
-		return http.StatusInternalServerError
+		fmt.Println(err)
+		return err
 	} else {
 		response, _ := json.Marshal(*res)
 		fmt.Println(string(response))
-		return http.StatusAccepted
+		return nil
 	}
 
 }
 
-func MakeCall(number string) int {
-
-	accountSid := ""
-	authToken := ""
+func MakeCall(number string) error {
 
 	client := twilio.NewRestClientWithParams(twilio.ClientParams{
 		Username: accountSid,
@@ -77,16 +76,17 @@ func MakeCall(number string) int {
 
 	callParams := &twilioApi.CreateCallParams{}
 	callParams.SetTo(number)
-	callParams.SetFrom("+13253357019")
+	callParams.SetFrom(twilioNumber)
 	callParams.SetUrl("http://twimlets.com/holdmusic?Bucket=com.twilio.music.ambient")
 
 	resp, err := client.Api.CreateCall(callParams)
 	if err != nil {
-		return http.StatusInternalServerError
+		fmt.Println(err)
+		return err
 	} else {
 		response, _ := json.Marshal(*resp)
 		fmt.Println(string(response))
-		return http.StatusAccepted
+		return nil
 	}
 
 }
@@ -106,7 +106,7 @@ func FetchMobileNumbers(uid string) ([]string, error) {
 			break
 		}
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
 		mobileNumbersUnfiltered = append(mobileNumbersUnfiltered, doc.Data())
 	}
@@ -148,6 +148,12 @@ func PanicButton(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 		fmt.Fprint(w, "body is invalid")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusBadRequest,
+			"message": "wrong body sent",
+		})
 		return
 	}
 	// Initialize app
@@ -175,20 +181,25 @@ func PanicButton(w http.ResponseWriter, r *http.Request) {
 	for _, num := range mobileNumbers {
 		messageRes := SendMessage(num, b.LocationLink, b.Name)
 		callRes := MakeCall(num)
-		if messageRes == 500 {
-			fmt.Println("Error while sending message")
+		if messageRes != nil {
+			fmt.Println(messageRes)
 		}
-		if callRes == 500 {
-			fmt.Println("Error while making call")
+		if callRes != nil {
+			fmt.Println(callRes)
 		}
 	}
 	res, err := GetNearbyHospitals(b.Location.Lat, b.Location.Lon)
 	if err != nil {
 		fmt.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Some error occurred while getting nearby hospitals"))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusInternalServerError,
+			"message": "Some error occurred while getting nearby hospitals",
+		})
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Write(res)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(res)
 }

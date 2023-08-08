@@ -43,11 +43,17 @@ func UpdateVerificationStatus(w http.ResponseWriter, r *http.Request) {
 		Action         string `json:"action"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusBadRequest,
+			"message": "wrong body sent",
+		})
 		fmt.Fprint(w, "No number sent")
 		return
 	}
 	if b.Action == "Confirm" {
-		_, err := client.Collection("users").Doc(b.Uid).Collection("panic_info").Doc(b.VerificationId).Update(ctx, []firestore.Update{
+		_, err := client.Collection("users").Doc(b.Uid).Collection("panic_info").Doc(b.VerificationId).Update(ctx, []firestore.Update{ // Update the document
 			{
 				Path:  "status",
 				Value: "Verified",
@@ -55,22 +61,47 @@ func UpdateVerificationStatus(w http.ResponseWriter, r *http.Request) {
 		})
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, "Some error occurred")
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  http.StatusInternalServerError,
+				"message": string(err.Error()),
+			})
+			fmt.Println(string(err.Error()))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Mobile Number verified"))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusOK,
+			"message": "Emergency Mobile Number verified",
+		})
+
 	} else if b.Action == "Delete" {
-		_, err := client.Collection("users").Doc(b.Uid).Collection("panic_info").Doc(b.VerificationId).Delete(ctx)
+		_, err := client.Collection("users").Doc(b.Uid).Collection("panic_info").Doc(b.VerificationId).Delete(ctx) // Delete the document
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, "Some error occurred")
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  http.StatusInternalServerError,
+				"message": string(err.Error()),
+			})
+			fmt.Println(string(err.Error()))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Mobile Number verified"))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusOK,
+			"message": "Emergency Mobile Number deleted",
+		})
+
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusBadRequest,
+			"message": "Wrong action sent",
+		})
 		fmt.Fprint(w, "Wrong action")
 		return
 	}

@@ -75,7 +75,7 @@ func SendMessage(number string, verification_link string, name string) (Response
 	}
 	response := Response{
 		Status:  http.StatusOK,
-		Message: name + " has request you to be an emergency contact. Click this link below to verify your number \n " + verification_link + "sent by MamaVault",
+		Message: name + " has request you to be an emergency contact. Click this link below to verify your number \n " + verification_link + "\nsent by MamaVault",
 		SentTo:  number,
 	}
 	return response, nil
