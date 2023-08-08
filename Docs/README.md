@@ -26,4 +26,6 @@ Api key : **Use your Own API key**
 
 <br/>
 
+You can find the data models of the database here : [Data Models](./Data-Models.md)
+
 If you face any problem you can reach out to me at : [Twiiter](https://www.x.com/RajdeepS019)
