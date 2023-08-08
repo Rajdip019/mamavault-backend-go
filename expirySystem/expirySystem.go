@@ -8,6 +8,7 @@ import (
 	"html"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
@@ -41,6 +42,10 @@ type IUser struct {
 	Allergies                []string  `firestore:"allergies,omitempty"`
 }
 
+// setting environment variables
+var sharedDocDeleteUrl = os.Getenv("SHARED_DOC_DELETE_URL")
+var cloudTaskQueueName = os.Getenv("CLOUD_TASK_QUEUE_NAME")
+
 type SharedDoc struct {
 	UserData  IUser
 	Documents []IDoc
@@ -71,7 +76,8 @@ func createHTTPTask(ctx context.Context, projectID, locationID, queueID, url, sh
 	// Create a new Cloud Tasks client instance.
 	client, err := cloudtasks.NewClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("NewClient: %v", err)
+		fmt.Printf("cloud task: %v", err)
+		return nil, err
 	}
 	defer client.Close()
 
@@ -102,7 +108,8 @@ func createHTTPTask(ctx context.Context, projectID, locationID, queueID, url, sh
 	jsonStr, err := json.Marshal(payloadValues)
 
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal json: %v", err)
+		fmt.Printf("unable to marshal json: %v", err)
+		return nil, err
 	}
 
 	// Add a payload message if one is present.
@@ -111,7 +118,8 @@ func createHTTPTask(ctx context.Context, projectID, locationID, queueID, url, sh
 	// log.Println(req.Task.ScheduleTime.Seconds)
 	createdTask, err := client.CreateTask(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("cloudtasks.CreateTask: %v", err)
+		fmt.Printf("cloud tasks.CreateTask: %v", err)
+		return nil, err
 	}
 
 	return createdTask, nil
@@ -133,7 +141,7 @@ func DuplicateData(firestore *firestore.Client, ctx context.Context, uid string,
 			break
 		}
 		if err != nil {
-			return "Error", err
+			return "", err
 		}
 		fetchedDocs = append(fetchedDocs, doc.Data())
 	}
@@ -142,7 +150,7 @@ func DuplicateData(firestore *firestore.Client, ctx context.Context, uid string,
 	if isProfile {
 		profileSnap, err := firestore.Collection("users").Doc(html.EscapeString(uid)).Get(ctx)
 		if err != nil {
-			return "Error", err
+			return "", err
 		}
 		profileData = profileSnap.Data()
 	}
@@ -164,7 +172,7 @@ func DuplicateData(firestore *firestore.Client, ctx context.Context, uid string,
 		"documents": *sharedDocsP,
 	})
 	if err != nil {
-		return "Error", err
+		return "", err
 	}
 	return doc_ref.ID, nil
 
@@ -185,16 +193,25 @@ func ExpirySystem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-		fmt.Fprint(w, "Wrong body sent")
-		log.Fatal("Error", err)
+		fmt.Println("Wrong body sent")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusBadRequest,
+			"message": "400 - wrong body sent",
+		})
 		return
 	}
 	// Duplicating shared docs data
 	id, err := DuplicateData(firestore, ctx, b.Uid, b.IsProfile, b.SharedDocs)
 	if err != nil {
+		fmt.Println("Error duplicating data - ", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("500 - Internal Server Error"))
-		log.Fatal("Error", err)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusInternalServerError,
+			"message": "500 - Internal Server Error",
+		})
 		return
 	}
 	// Making share docs link
@@ -211,14 +228,25 @@ func ExpirySystem(w http.ResponseWriter, r *http.Request) {
 		"views":         0,
 	})
 	if errLink != nil {
+		fmt.Println("Error storing shared link - ", errLink)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusInternalServerError,
+			"message": "Error storing shared link - " + errLink.Error(),
+		})
 		return
 	}
 
-	task, err := createHTTPTask(ctx, "mamavault", "asia-south1", "shared-doc-delete-queue", "https://delete-shared-doc-s6e4vwvwlq-el.a.run.app", id, b.TTL, b.Uid)
+	task, err := createHTTPTask(ctx, "mamavault", "asia-south1", cloudTaskQueueName, sharedDocDeleteUrl, id, b.TTL, b.Uid)
 	if err != nil {
+		fmt.Println("Error creating task - ", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("500 - Internal Server Error"))
-		log.Fatal("Error", err)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusInternalServerError,
+			"message": "Error creating task - " + err.Error(),
+		})
 		return
 	}
 
@@ -227,10 +255,16 @@ func ExpirySystem(w http.ResponseWriter, r *http.Request) {
 	response, err := json.Marshal(responseMap)
 
 	if err != nil {
+		fmt.Println("Error creating task - ", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Unable to marshal JSON"))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusInternalServerError,
+			"message": "Error creating task - " + err.Error(),
+		})
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(response)
 }
