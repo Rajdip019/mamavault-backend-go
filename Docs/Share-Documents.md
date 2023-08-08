@@ -1,6 +1,6 @@
 ## Expiry System API
 
-**Path** : `/get-sharable-link`
+**Path** : `/get-shareable-link`
 
 ```json
 {
