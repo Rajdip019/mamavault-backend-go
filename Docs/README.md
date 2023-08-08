@@ -26,4 +26,4 @@ Api key : **Use your Own API key**
 
 <br/>
 
-If you face any problem you can reach out to me at : [Twiiter](www.x.xom/RajdipS019)
+If you face any problem you can reach out to me at : [Twiiter](https://www.x.xom/RajdeepS019)
