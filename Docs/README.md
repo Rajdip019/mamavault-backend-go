@@ -18,11 +18,11 @@ Api key : **Use your Own API key**
 
 [Share documents API](./Share-Documents.md)
 
-[Panic API]("./Panic.md")
+[Panic API](./Panic.md)
 
-[Emergency Mobile Verification API]("")
+[Emergency Mobile Verification API](./Emergency-Mobile-Number.md)
 
-[Formatting APIs](https://www.notion.so/Formatting-APIs-7502414ad958452ba978e6f66138fd92?pvs=21)
+[Formatting APIs](./Formatting.md)
 
 <br/>
 
