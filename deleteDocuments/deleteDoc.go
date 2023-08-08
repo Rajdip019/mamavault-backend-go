@@ -42,18 +42,33 @@ func DeleteDocs(w http.ResponseWriter, r *http.Request) {
 		Uid      string   `json:"uid"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-		fmt.Fprint(w, "No uid sent")
+		fmt.Println("Wrong body sent")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusBadRequest,
+			"message": "wrong body sent",
+		})
 		return
 	}
 
 	for _, id := range b.DocIdArr {
 		_, err := firestore.Collection("users").Doc(b.Uid).Collection("documents").Doc(id).Delete(ctx)
 		if err != nil {
+			fmt.Printf("An error has occurred: %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, "Some error occurred")
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  http.StatusInternalServerError,
+				"message": string(err.Error()),
+			})
 			return
 		}
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Document Deleted Successfully"))
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":  http.StatusOK,
+		"message": "Documents are Deleted",
+	})
 }
